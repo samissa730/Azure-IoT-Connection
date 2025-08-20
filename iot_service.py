@@ -30,13 +30,12 @@ class AzureIoTService:
     def __init__(self):
         self.client = None
         self.running = True
-        self.heartbeat_count = 0
         self._load_provisioning_config()
         signal.signal(signal.SIGTERM, self._signal_handler)
         signal.signal(signal.SIGINT, self._signal_handler)
 
     def _signal_handler(self, signum, frame):
-        # logger.info(f"Received signal {signum}, shutting down...")
+        logger.info(f"Received signal {signum}, shutting down...")
         self.running = False
 
     def _load_provisioning_config(self):
@@ -124,10 +123,7 @@ class AzureIoTService:
                 })
                 try:
                     self.client.send_message(heartbeat)
-                    self.heartbeat_count += 1
-                    # Only log heartbeat every 10 minutes (600 heartbeats) to reduce noise
-                    if self.heartbeat_count % 600 == 0:
-                        # logger.info(f"Heartbeat sent (count: {self.heartbeat_count})")
+                    # logger.info("Sent heartbeat")
                 except Exception as e:
                     # logger.error(f"Heartbeat failed: {e}")
                     self.client = None
