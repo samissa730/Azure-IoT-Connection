@@ -13,18 +13,18 @@ from azure.iot.device import (
 
 # Paths and constants
 CONFIG_PATH = Path("/etc/azureiotpnp/provisioning_config.json")
-LOG_PATH = Path("/var/log/azure-iot-service.log")
+# LOG_PATH = Path("/var/log/azure-iot-service.log")
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
-    handlers=[
-        logging.FileHandler(LOG_PATH),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+# # Configure logging
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format="%(asctime)s %(levelname)s %(message)s",
+#     handlers=[
+#         logging.FileHandler(LOG_PATH),
+#         logging.StreamHandler()
+#     ]
+# )
+# logger = logging.getLogger(__name__)
 
 class AzureIoTService:
     def __init__(self):
@@ -35,7 +35,7 @@ class AzureIoTService:
         signal.signal(signal.SIGINT, self._signal_handler)
 
     def _signal_handler(self, signum, frame):
-        logger.info(f"Received signal {signum}, shutting down...")
+        # logger.info(f"Received signal {signum}, shutting down...")
         self.running = False
 
     def _load_provisioning_config(self):
@@ -71,7 +71,7 @@ class AzureIoTService:
                 method_request, status, payload
             )
             self.client.send_method_response(response)
-            logger.info(f"Executed command: {command}, Response: {payload}")
+            # logger.info(f"Executed command: {command}, Response: {payload}")
         self.method_request_handler = handler
 
     def provision_device(self):
@@ -83,11 +83,11 @@ class AzureIoTService:
         )
         result = prov_client.register()
         if result.status != "assigned":
-            logger.error(f"Provisioning failed: {result.status}")
+            # logger.error(f"Provisioning failed: {result.status}")
             return False
         self.assigned_hub = result.registration_state.assigned_hub
         self.device_id = result.registration_state.device_id
-        logger.info(f"Provisioned to hub {self.assigned_hub}, device ID {self.device_id}")
+        # logger.info(f"Provisioned to hub {self.assigned_hub}, device ID {self.device_id}")
         return True
 
     def connect_to_iot_hub(self):
@@ -102,10 +102,10 @@ class AzureIoTService:
             self._register_direct_method_handler()
             self.client.on_method_request_received = self.method_request_handler
             self.client.connect()
-            logger.info("Connected to IoT Hub")
+            # logger.info("Connected to IoT Hub")
             return True
         except Exception as e:
-            logger.error(f"Connection to IoT Hub failed: {e}")
+            # logger.error(f"Connection to IoT Hub failed: {e}")
             return False
 
     def run(self):
