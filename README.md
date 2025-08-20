@@ -25,14 +25,14 @@ Before setting up the service, ensure you have:
 
 ## Quick Setup
 
-### Option 1: Automated Setup (Recommended)
+### Automated Setup
 
-**Important:** Before running any scripts, ensure they have proper permissions:
+**Important:** You can run the scripts directly with bash without making them executable:
 ```bash
-chmod +x *.sh
+sudo bash set_env.sh
+sudo bash test_setup.sh
+sudo bash uninstall.sh
 ```
-
-This makes all shell scripts executable at once.
 
 1. **Clone the repository**:
    ```bash
@@ -40,14 +40,9 @@ This makes all shell scripts executable at once.
    cd Azure-IoT-Connection
    ```
 
-2. **Make the setup script executable**:
+2. **Run the automated setup**:
    ```bash
-   chmod +x set_env.sh
-   ```
-
-3. **Run the automated setup**:
-   ```bash
-   sudo ./set_env.sh
+   sudo bash set_env.sh
    ```
 
 4. **Follow the prompts** to enter your Azure IoT configuration details:
@@ -64,66 +59,6 @@ The script will automatically:
 - Set up the systemd service
 - Enable and start the service
 - Verify the installation
-
-### Option 2: Manual Setup
-
-If you prefer to set up manually, follow these steps:
-
-1. **Update system and install dependencies**:
-   ```bash
-   sudo apt update
-   sudo apt install -y python3-pip
-   sudo pip3 install --break-system-packages azure-iot-device
-   ```
-
-2. **Create configuration directory and file**:
-   ```bash
-   sudo mkdir -p /etc/azureiotpnp
-   sudo nano /etc/azureiotpnp/provisioning_config.json
-   ```
-
-3. **Add your configuration** (use `provisioning_config_template.json` as reference):
-   ```json
-   {
-     "globalEndpoint": "global.azure-devices-provisioning.net",
-     "idScope": "YOUR_ID_SCOPE",
-     "registrationId": "YOUR_REGISTRATION_ID",
-     "symmetricKey": "YOUR_PRIMARY_KEY",
-     "tag": {
-       "nexusLocate": {
-         "siteName": "YOUR_SITE_NAME",
-         "truckNumber": "YOUR_TRUCK_NUMBER"
-       }
-     }
-   }
-   ```
-
-4. **Set proper permissions**:
-   ```bash
-   sudo chmod 600 /etc/azureiotpnp/provisioning_config.json
-   ```
-
-5. **Create service directory and copy files**:
-   ```bash
-   sudo mkdir -p /opt/azure-iot
-   sudo cp iot_service.py /opt/azure-iot/
-   sudo cp azure-iot.service /etc/systemd/system/
-   sudo chmod +x /opt/azure-iot/iot_service.py
-   ```
-
-6. **Set up logging**:
-   ```bash
-   sudo mkdir -p /var/log
-   sudo touch /var/log/azure-iot-service.log
-   sudo chmod 644 /var/log/azure-iot-service.log
-   ```
-
-7. **Enable and start the service**:
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl enable azure-iot.service
-   sudo systemctl start azure-iot.service
-   ```
 
 ## Service Management
 
@@ -204,13 +139,13 @@ sudo python3 iot_service.py
 
 1. **Script permission denied:**
    ```bash
-   chmod +x *.sh
+   sudo bash set_env.sh
    ```
 
-2. **Script not found or not executable:**
+2. **Script not found:**
    ```bash
    ls -la *.sh
-   chmod +x set_env.sh test_setup.sh uninstall.sh
+   sudo bash set_env.sh
    ```
 
 3. **Script fails with syntax errors:**
@@ -247,8 +182,7 @@ The primary automation script that handles the complete environment setup.
 
 **Usage:**
 ```bash
-chmod +x set_env.sh
-sudo ./set_env.sh
+sudo bash set_env.sh
 ```
 
 **Features:**
@@ -270,8 +204,7 @@ Tests and validates your Azure IoT service setup to ensure everything is working
 
 **Usage:**
 ```bash
-chmod +x test_setup.sh
-sudo ./test_setup.sh
+sudo bash test_setup.sh
 ```
 
 **Tests performed:**
@@ -295,8 +228,7 @@ Completely removes the Azure IoT service and cleans up all installed files.
 
 **Usage:**
 ```bash
-chmod +x uninstall.sh
-sudo ./uninstall.sh
+sudo bash uninstall.sh
 ```
 
 **Removal options:**
