@@ -139,6 +139,7 @@ class AzureIoTService:
                     self.client.disconnect()
                     # logger.info("Disconnected from IoT Hub")
                 except Exception as e:
+                    pass
                     # logger.error(f"Error during disconnect: {e}")
 
 if __name__ == "__main__":
