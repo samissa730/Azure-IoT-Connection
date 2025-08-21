@@ -54,14 +54,13 @@ get_config_input() {
     print_status "Please provide the following Azure IoT configuration details:"
     echo
     
-    read -p "Enter your ID Scope: " ID_SCOPE
-    read -p "Enter your Registration ID: " REGISTRATION_ID
-    read -p "Enter your Primary Key: " PRIMARY_KEY
+    read -p "Enter your Group Primary Key: " GROUP_KEY
+    read -p "Enter your DPS ID Scope: " ID_SCOPE
     read -p "Enter your Site Name: " SITE_NAME
     read -p "Enter your Truck Number: " TRUCK_NUMBER
     
     # Validate inputs
-    if [[ -z "$ID_SCOPE" || -z "$REGISTRATION_ID" || -z "$PRIMARY_KEY" || -z "$SITE_NAME" || -z "$TRUCK_NUMBER" ]]; then
+    if [[ -z "$GROUP_KEY" || -z "$ID_SCOPE" || -z "$SITE_NAME" || -z "$TRUCK_NUMBER" ]]; then
         print_error "All fields are required. Please run the script again."
         exit 1
     fi
@@ -95,33 +94,42 @@ install_dependencies() {
     print_success "Dependencies installed"
 }
 
-# Function to create configuration files
+# Function to create configuration files using device_setup.py
 create_config_files() {
-    print_status "Creating configuration files..."
+    print_status "Creating configuration files using device_setup.py..."
     
     # Create configuration directory
     mkdir -p /etc/azureiotpnp
     
-    # Create provisioning config
-    cat > /etc/azureiotpnp/provisioning_config.json << EOF
-{
-  "globalEndpoint": "global.azure-devices-provisioning.net",
-  "idScope": "$ID_SCOPE",
-  "registrationId": "$REGISTRATION_ID",
-  "symmetricKey": "$PRIMARY_KEY",
-  "tag": {
-    "nexusLocate": {
-      "siteName": "$SITE_NAME",
-      "truckNumber": "$TRUCK_NUMBER"
-    }
-  }
-}
+    # Check if device_setup.py exists
+    if [[ ! -f "device_setup.py" ]]; then
+        print_error "device_setup.py not found in current directory"
+        exit 1
+    fi
+    
+    # Create a temporary input file for device_setup.py
+    cat > /tmp/device_setup_input.txt << EOF
+$GROUP_KEY
+nexus-$(cat /proc/cpuinfo | grep Serial | cut -d: -f2 | tr -d ' \t')
+$ID_SCOPE
+$SITE_NAME
+$TRUCK_NUMBER
 EOF
     
-    # Set proper permissions
-    chmod 600 /etc/azureiotpnp/provisioning_config.json
+    # Run device_setup.py with the inputs
+    print_status "Running device setup script..."
+    python3 device_setup.py < /tmp/device_setup_input.txt
     
-    print_success "Configuration files created"
+    # Clean up temporary file
+    rm -f /tmp/device_setup_input.txt
+    
+    # Verify configuration was created
+    if [[ -f /etc/azureiotpnp/provisioning_config.json ]]; then
+        print_success "Configuration files created successfully"
+    else
+        print_error "Failed to create configuration files"
+        exit 1
+    fi
 }
 
 # Function to create service directory and copy files
@@ -134,11 +142,15 @@ setup_service_files() {
     # Copy the IoT service script
     cp iot_service.py /opt/azure-iot/
     
+    # Copy the device setup script (for future use)
+    cp device_setup.py /opt/azure-iot/
+    
     # Copy the systemd service file
     cp azure-iot.service /etc/systemd/system/
     
-    # Make script executable
+    # Make scripts executable
     chmod +x /opt/azure-iot/iot_service.py
+    chmod +x /opt/azure-iot/device_setup.py
     
     print_success "Service files set up"
 }
@@ -221,6 +233,7 @@ show_final_instructions() {
     echo "  Config file: /etc/azureiotpnp/provisioning_config.json"
     echo "  Service file: /etc/systemd/system/azure-iot.service"
     echo "  Log file: /var/log/azure-iot-service.log"
+    echo "  Device setup script: /opt/azure-iot/device_setup.py"
     echo
     echo "The service will automatically start on boot."
     echo

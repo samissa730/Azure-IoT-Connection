@@ -85,7 +85,7 @@ print_success "Systemd reloaded"
 print_status "Removing service files..."
 if [[ -d /opt/azure-iot ]]; then
     rm -rf /opt/azure-iot
-    print_success "Service directory removed"
+    print_success "Service directory removed (including iot_service.py and device_setup.py)"
 else
     print_status "Service directory not found"
 fi
@@ -132,7 +132,7 @@ print_success "Azure IoT service has been completely removed from your system."
 echo
 echo "Removed components:"
 echo "  ✅ Systemd service file"
-echo "  ✅ Service executable files"
+echo "  ✅ Service executable files (iot_service.py, device_setup.py)"
 echo "  ✅ Configuration files"
 echo "  ✅ Log files"
 if [[ "$response" =~ ^[Yy]$ ]]; then

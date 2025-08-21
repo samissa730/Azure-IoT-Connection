@@ -52,9 +52,28 @@ if [[ -f /etc/azureiotpnp/provisioning_config.json ]]; then
         print_warning "Configuration file permissions are $perms (should be 600)"
     fi
     
-    # Validate JSON syntax
+    # Validate JSON syntax and structure
     if python3 -m json.tool /etc/azureiotpnp/provisioning_config.json > /dev/null 2>&1; then
         print_success "Configuration file has valid JSON syntax"
+        
+        # Check for required fields
+        if python3 -c "
+import json
+config = json.load(open('/etc/azureiotpnp/provisioning_config.json'))
+required = ['globalEndpoint', 'idScope', 'registrationId', 'symmetricKey', 'tags']
+missing = [f for f in required if f not in config]
+if missing:
+    print('Missing required fields:', missing)
+    exit(1)
+if 'nexusLocate' not in config.get('tags', {}):
+    print('Missing nexusLocate in tags')
+    exit(1)
+print('Configuration structure is valid')
+" 2>/dev/null; then
+            print_success "Configuration structure is valid"
+        else
+            print_warning "Configuration structure may be incomplete"
+        fi
     else
         print_error "Configuration file has invalid JSON syntax"
         exit 1
@@ -77,6 +96,18 @@ if [[ -f /opt/azure-iot/iot_service.py ]]; then
 else
     print_error "IoT service script not found"
     exit 1
+fi
+
+if [[ -f /opt/azure-iot/device_setup.py ]]; then
+    print_success "Device setup script exists"
+    
+    if [[ -x /opt/azure-iot/device_setup.py ]]; then
+        print_success "Device setup script is executable"
+    else
+        print_warning "Device setup script is not executable"
+    fi
+else
+    print_warning "Device setup script not found (may not be critical)"
 fi
 
 if [[ -f /etc/systemd/system/azure-iot.service ]]; then
@@ -157,6 +188,7 @@ error_count=0
 # Run tests again to count results
 if [[ -f /etc/azureiotpnp/provisioning_config.json ]]; then ((success_count++)); fi
 if [[ -f /opt/azure-iot/iot_service.py ]]; then ((success_count++)); fi
+if [[ -f /opt/azure-iot/device_setup.py ]]; then ((success_count++)); else ((warning_count++)); fi
 if [[ -f /etc/systemd/system/azure-iot.service ]]; then ((success_count++)); fi
 if systemctl is-enabled azure-iot.service > /dev/null 2>&1; then ((success_count++)); else ((warning_count++)); fi
 if systemctl is-active azure-iot.service > /dev/null 2>&1; then ((success_count++)); else ((warning_count++)); fi
