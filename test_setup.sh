@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Test script to verify Azure IoT service setup
-# Run this after setup to ensure everything is working correctly
+# Azure IoT Connection Service - Test Setup Script
+# This script tests and validates your Azure IoT service setup
 
-set -e
+set -e  # Exit on any error
 
 # Colors for output
 RED='\033[0;31m'
@@ -12,6 +12,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Function to print colored output
 print_status() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
@@ -28,194 +29,373 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-echo "=========================================="
-echo "Azure IoT Service Setup Test"
-echo "=========================================="
-echo
-
-# Check if running as root
-if [[ $EUID -ne 0 ]]; then
-    print_error "This script must be run as root (use sudo)"
-    exit 1
-fi
-
-# Test 1: Check if configuration file exists
-print_status "Testing configuration file..."
-if [[ -f /etc/azureiotpnp/provisioning_config.json ]]; then
-    print_success "Configuration file exists"
-    
-    # Check file permissions
-    perms=$(stat -c %a /etc/azureiotpnp/provisioning_config.json)
-    if [[ "$perms" == "600" ]]; then
-        print_success "Configuration file has correct permissions (600)"
-    else
-        print_warning "Configuration file permissions are $perms (should be 600)"
-    fi
-    
-    # Validate JSON syntax and structure
-    if python3 -m json.tool /etc/azureiotpnp/provisioning_config.json > /dev/null 2>&1; then
-        print_success "Configuration file has valid JSON syntax"
-        
-        # Check for required fields
-        if python3 -c "
-import json
-config = json.load(open('/etc/azureiotpnp/provisioning_config.json'))
-required = ['globalEndpoint', 'idScope', 'registrationId', 'symmetricKey', 'tags']
-missing = [f for f in required if f not in config]
-if missing:
-    print('Missing required fields:', missing)
-    exit(1)
-if 'nexusLocate' not in config.get('tags', {}):
-    print('Missing nexusLocate in tags')
-    exit(1)
-print('Configuration structure is valid')
-" 2>/dev/null; then
-            print_success "Configuration structure is valid"
-        else
-            print_warning "Configuration structure may be incomplete"
-        fi
-    else
-        print_error "Configuration file has invalid JSON syntax"
+# Function to check if running as root
+check_root() {
+    if [[ $EUID -ne 0 ]]; then
+        print_error "This script must be run as root (use sudo)"
         exit 1
     fi
-else
-    print_error "Configuration file not found"
-    exit 1
-fi
+}
 
-# Test 2: Check if service files exist
-print_status "Testing service files..."
-if [[ -f /opt/azure-iot/iot_service.py ]]; then
-    print_success "IoT service script exists"
+# Function to test configuration files
+test_configuration() {
+    print_status "Testing configuration files..."
     
-    if [[ -x /opt/azure-iot/iot_service.py ]]; then
-        print_success "IoT service script is executable"
+    # Check if configuration file exists
+    if [[ -f "/etc/azureiotpnp/provisioning_config.json" ]]; then
+        print_success "Configuration file exists"
+        
+        # Test JSON syntax
+        if python3 -m json.tool "/etc/azureiotpnp/provisioning_config.json" > /dev/null 2>&1; then
+            print_success "Configuration file has valid JSON syntax"
+        else
+            print_error "Configuration file has invalid JSON syntax"
+            return 1
+        fi
+        
+        # Check file permissions
+        perms=$(stat -c "%a" "/etc/azureiotpnp/provisioning_config.json")
+        if [[ "$perms" == "600" ]]; then
+            print_success "Configuration file has correct permissions (600)"
+        else
+            print_warning "Configuration file permissions are $perms (should be 600)"
+        fi
+        
+        # Display configuration summary (without sensitive data)
+        print_status "Configuration summary:"
+        config_data=$(python3 -c "
+import json
+with open('/etc/azureiotpnp/provisioning_config.json', 'r') as f:
+    config = json.load(f)
+print(f'  ID Scope: {config.get(\"idScope\", \"N/A\")}')
+print(f'  Registration ID: {config.get(\"registrationId\", \"N/A\")}')
+print(f'  Global Endpoint: {config.get(\"globalEndpoint\", \"N/A\")}')
+if 'tags' in config and 'nexusLocate' in config['tags']:
+    tags = config['tags']['nexusLocate']
+    print(f'  Site Name: {tags.get(\"siteName\", \"N/A\")}')
+    print(f'  Truck Number: {tags.get(\"truckNumber\", \"N/A\")}')
+    print(f'  Device Serial: {tags.get(\"deviceSerial\", \"N/A\")}')
+")
+        echo "$config_data"
+        
     else
-        print_warning "IoT service script is not executable"
+        print_error "Configuration file not found"
+        return 1
     fi
-else
-    print_error "IoT service script not found"
-    exit 1
-fi
-
-if [[ -f /opt/azure-iot/device_setup.py ]]; then
-    print_success "Device setup script exists"
     
-    if [[ -x /opt/azure-iot/device_setup.py ]]; then
-        print_success "Device setup script is executable"
-    else
-        print_warning "Device setup script is not executable"
-    fi
-else
-    print_warning "Device setup script not found (may not be critical)"
-fi
+    return 0
+}
 
-if [[ -f /etc/systemd/system/azure-iot.service ]]; then
-    print_success "Systemd service file exists"
-else
-    print_error "Systemd service file not found"
-    exit 1
-fi
-
-# Test 3: Check if service is enabled and running
-print_status "Testing service status..."
-if systemctl is-enabled azure-iot.service > /dev/null 2>&1; then
-    print_success "Service is enabled to start on boot"
-else
-    print_warning "Service is not enabled to start on boot"
-fi
-
-if systemctl is-active azure-iot.service > /dev/null 2>&1; then
-    print_success "Service is currently running"
-else
-    print_warning "Service is not currently running"
-fi
-
-# Test 4: Check Python dependencies
-print_status "Testing Python dependencies..."
-if python3 -c "import azure.iot.device" > /dev/null 2>&1; then
-    print_success "Azure IoT Device SDK is installed"
-else
-    print_error "Azure IoT Device SDK is not installed"
-    exit 1
-fi
-
-# Test 5: Check log file
-print_status "Testing logging setup..."
-if [[ -f /var/log/azure-iot-service.log ]]; then
-    print_success "Log file exists"
+# Function to test service files
+test_service_files() {
+    print_status "Testing service files..."
     
-    if [[ -w /var/log/azure-iot-service.log ]]; then
-        print_success "Log file is writable"
+    # Check if service directory exists
+    if [[ -d "/opt/azure-iot" ]]; then
+        print_success "Service directory exists"
     else
-        print_warning "Log file is not writable"
+        print_error "Service directory not found"
+        return 1
     fi
-else
-    print_warning "Log file does not exist"
-fi
-
-# Test 6: Check network connectivity
-print_status "Testing network connectivity..."
-if ping -c 1 global.azure-devices-provisioning.net > /dev/null 2>&1; then
-    print_success "Can reach Azure DPS endpoint"
-else
-    print_warning "Cannot reach Azure DPS endpoint (check internet connection)"
-fi
-
-# Test 7: Check service logs for errors
-print_status "Checking recent service logs..."
-if systemctl is-active azure-iot.service > /dev/null 2>&1; then
-    recent_logs=$(journalctl -u azure-iot.service --since "5 minutes ago" --no-pager)
-    if echo "$recent_logs" | grep -q "error\|Error\|ERROR"; then
-        print_warning "Found errors in recent service logs:"
-        echo "$recent_logs" | grep -i "error" | tail -5
+    
+    # Check if main service script exists and is executable
+    if [[ -f "/opt/azure-iot/iot_service.py" ]]; then
+        print_success "IoT service script exists"
+        if [[ -x "/opt/azure-iot/iot_service.py" ]]; then
+            print_success "IoT service script is executable"
+        else
+            print_warning "IoT service script is not executable"
+        fi
     else
-        print_success "No recent errors found in service logs"
+        print_error "IoT service script not found"
+        return 1
     fi
-fi
-
-echo
-echo "=========================================="
-echo "Test Results Summary"
-echo "=========================================="
-echo
-
-# Count successes and warnings
-success_count=0
-warning_count=0
-error_count=0
-
-# Run tests again to count results
-if [[ -f /etc/azureiotpnp/provisioning_config.json ]]; then ((success_count++)); fi
-if [[ -f /opt/azure-iot/iot_service.py ]]; then ((success_count++)); fi
-if [[ -f /opt/azure-iot/device_setup.py ]]; then ((success_count++)); else ((warning_count++)); fi
-if [[ -f /etc/systemd/system/azure-iot.service ]]; then ((success_count++)); fi
-if systemctl is-enabled azure-iot.service > /dev/null 2>&1; then ((success_count++)); else ((warning_count++)); fi
-if systemctl is-active azure-iot.service > /dev/null 2>&1; then ((success_count++)); else ((warning_count++)); fi
-if python3 -c "import azure.iot.device" > /dev/null 2>&1; then ((success_count++)); else ((error_count++)); fi
-if [[ -f /var/log/azure-iot-service.log ]]; then ((success_count++)); else ((warning_count++)); fi
-if ping -c 1 global.azure-devices-provisioning.net > /dev/null 2>&1; then ((success_count++)); else ((warning_count++)); fi
-
-echo "Tests completed:"
-echo "  ✅ Successes: $success_count"
-echo "  ⚠️  Warnings: $warning_count"
-echo "  ❌ Errors: $error_count"
-echo
-
-if [[ $error_count -eq 0 ]]; then
-    if [[ $warning_count -eq 0 ]]; then
-        print_success "All tests passed! Your Azure IoT service is properly configured."
+    
+    # Check if device setup script exists and is executable
+    if [[ -f "/opt/azure-iot/device_setup.py" ]]; then
+        print_success "Device setup script exists"
+        if [[ -x "/opt/azure-iot/device_setup.py" ]]; then
+            print_success "Device setup script is executable"
+        else
+            print_warning "Device setup script is not executable"
+        fi
     else
-        print_warning "Setup is mostly complete with $warning_count warnings. Review the warnings above."
+        print_error "Device setup script not found"
+        return 1
     fi
-else
-    print_error "Setup has $error_count errors that need to be resolved."
-    exit 1
-fi
+    
+    return 0
+}
 
-echo
-echo "Next steps:"
-echo "1. Check service status: sudo systemctl status azure-iot.service"
-echo "2. View real-time logs: sudo journalctl -u azure-iot.service -f"
-echo "3. Monitor the service for a few minutes to ensure stable operation"
-echo "4. Check your Azure IoT Hub to see if the device is connected"
+# Function to test systemd service
+test_systemd_service() {
+    print_status "Testing systemd service..."
+    
+    # Check if service file exists
+    if [[ -f "/etc/systemd/system/azure-iot.service" ]]; then
+        print_success "Systemd service file exists"
+    else
+        print_error "Systemd service file not found"
+        return 1
+    fi
+    
+    # Check if service is enabled
+    if systemctl is-enabled --quiet azure-iot.service; then
+        print_success "Service is enabled (will start on boot)"
+    else
+        print_warning "Service is not enabled"
+    fi
+    
+    # Check if service is active
+    if systemctl is-active --quiet azure-iot.service; then
+        print_success "Service is running"
+    else
+        print_warning "Service is not running"
+    fi
+    
+    # Check service status
+    print_status "Service status:"
+    systemctl status azure-iot.service --no-pager -l
+    
+    return 0
+}
+
+# Function to test Python dependencies
+test_python_dependencies() {
+    print_status "Testing Python dependencies..."
+    
+    # Check if Python 3 is available
+    if command -v python3 &> /dev/null; then
+        python_version=$(python3 --version)
+        print_success "Python 3 available: $python_version"
+    else
+        print_error "Python 3 not found"
+        return 1
+    fi
+    
+    # Check if pip3 is available
+    if command -v pip3 &> /dev/null; then
+        print_success "pip3 available"
+    else
+        print_error "pip3 not found"
+        return 1
+    fi
+    
+    # Check Azure IoT Device SDK
+    if python3 -c "import azure.iot.device" 2>/dev/null; then
+        print_success "Azure IoT Device SDK is installed"
+        
+        # Get version info
+        sdk_version=$(python3 -c "import azure.iot.device; print(azure.iot.device.__version__)" 2>/dev/null || echo "Unknown")
+        print_status "Azure IoT Device SDK version: $sdk_version"
+    else
+        print_error "Azure IoT Device SDK is not installed"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Function to test log files
+test_logging() {
+    print_status "Testing logging setup..."
+    
+    # Check if log file exists
+    if [[ -f "/var/log/azure-iot-service.log" ]]; then
+        print_success "Log file exists"
+        
+        # Check file permissions
+        perms=$(stat -c "%a" "/var/log/azure-iot-service.log")
+        if [[ "$perms" == "644" ]]; then
+            print_success "Log file has correct permissions (644)"
+        else
+            print_warning "Log file permissions are $perms (should be 644)"
+        fi
+        
+        # Check file size
+        size=$(stat -c "%s" "/var/log/azure-iot-service.log")
+        if [[ $size -gt 0 ]]; then
+            print_success "Log file has content ($size bytes)"
+            
+            # Show last few log entries
+            print_status "Last 5 log entries:"
+            tail -5 "/var/log/azure-iot-service.log" 2>/dev/null || echo "  (No readable log entries)"
+        else
+            print_warning "Log file is empty"
+        fi
+        
+    else
+        print_warning "Log file not found"
+    fi
+    
+    # Check systemd journal
+    print_status "Checking systemd journal for service logs..."
+    journal_count=$(journalctl -u azure-iot.service --no-pager | wc -l)
+    if [[ $journal_count -gt 1 ]]; then
+        print_success "Service logs found in systemd journal ($journal_count lines)"
+        
+        # Show last few journal entries
+        print_status "Last 5 journal entries:"
+        journalctl -u azure-iot.service --no-pager -n 5
+    else
+        print_warning "No service logs found in systemd journal"
+    fi
+    
+    return 0
+}
+
+# Function to test network connectivity
+test_network() {
+    print_status "Testing network connectivity..."
+    
+    # Test basic internet connectivity
+    if ping -c 1 8.8.8.8 > /dev/null 2>&1; then
+        print_success "Basic internet connectivity OK"
+    else
+        print_warning "Basic internet connectivity failed"
+    fi
+    
+    # Test Azure DPS endpoint
+    if ping -c 1 global.azure-devices-provisioning.net > /dev/null 2>&1; then
+        print_success "Azure DPS endpoint reachable"
+    else
+        print_warning "Azure DPS endpoint not reachable"
+    fi
+    
+    # Test DNS resolution
+    if nslookup global.azure-devices-provisioning.net > /dev/null 2>&1; then
+        print_success "DNS resolution working"
+    else
+        print_warning "DNS resolution issues detected"
+    fi
+    
+    return 0
+}
+
+# Function to analyze service logs
+analyze_logs() {
+    print_status "Analyzing service logs for errors..."
+    
+    # Check for errors in systemd journal
+    error_count=$(journalctl -u azure-iot.service --no-pager | grep -i "error\|fail\|exception" | wc -l)
+    if [[ $error_count -gt 0 ]]; then
+        print_warning "Found $error_count potential errors in service logs"
+        print_status "Recent errors:"
+        journalctl -u azure-iot.service --no-pager | grep -i "error\|fail\|exception" | tail -5
+    else
+        print_success "No errors found in service logs"
+    fi
+    
+    # Check for connection issues
+    connection_issues=$(journalctl -u azure-iot.service --no-pager | grep -i "connect\|connection\|timeout" | wc -l)
+    if [[ $connection_issues -gt 0 ]]; then
+        print_status "Connection-related messages found:"
+        journalctl -u azure-iot.service --no-pager | grep -i "connect\|connection\|timeout" | tail -3
+    fi
+    
+    return 0
+}
+
+# Function to provide recommendations
+provide_recommendations() {
+    print_status "Providing recommendations..."
+    
+    echo
+    echo "============================================================"
+    echo "Recommendations:"
+    echo "============================================================"
+    
+    # Check if service is running
+    if ! systemctl is-active --quiet azure-iot.service; then
+        echo "• Start the service: sudo systemctl start azure-iot.service"
+    fi
+    
+    # Check if service is enabled
+    if ! systemctl is-enabled --quiet azure-iot.service; then
+        echo "• Enable service auto-start: sudo systemctl enable azure-iot.service"
+    fi
+    
+    # Check for common issues
+    if ! ping -c 1 global.azure-devices-provisioning.net > /dev/null 2>&1; then
+        echo "• Check network connectivity and firewall settings"
+    fi
+    
+    if [[ ! -f "/etc/azureiotpnp/provisioning_config.json" ]]; then
+        echo "• Run device setup: sudo python3 /opt/azure-iot/device_setup.py"
+    fi
+    
+    echo
+    echo "For detailed troubleshooting:"
+    echo "• View service logs: sudo journalctl -u azure-iot.service -f"
+    echo "• Check service status: sudo systemctl status azure-iot.service"
+    echo "• View configuration: sudo cat /etc/azureiotpnp/provisioning_config.json"
+    echo "============================================================"
+}
+
+# Function to run all tests
+run_all_tests() {
+    local overall_success=true
+    
+    echo "============================================================"
+    echo "Azure IoT Service - Setup Test Results"
+    echo "============================================================"
+    echo
+    
+    # Run all test functions
+    test_configuration || overall_success=false
+    echo
+    
+    test_service_files || overall_success=false
+    echo
+    
+    test_systemd_service || overall_success=false
+    echo
+    
+    test_python_dependencies || overall_success=false
+    echo
+    
+    test_logging || overall_success=false
+    echo
+    
+    test_network || overall_success=false
+    echo
+    
+    analyze_logs || overall_success=false
+    echo
+    
+    # Provide recommendations
+    provide_recommendations
+    
+    # Final summary
+    echo
+    echo "============================================================"
+    if [[ "$overall_success" == true ]]; then
+        print_success "All tests completed successfully!"
+        echo "Your Azure IoT service appears to be properly configured."
+    else
+        print_warning "Some tests failed. Please review the recommendations above."
+        echo "Your Azure IoT service may need additional configuration."
+    fi
+    echo "============================================================"
+    
+    return $([[ "$overall_success" == true ]] && echo 0 || echo 1)
+}
+
+# Main execution
+main() {
+    echo "============================================================"
+    echo "Azure IoT Connection Service - Test Setup"
+    echo "============================================================"
+    echo "This script will test and validate your Azure IoT service setup."
+    echo "============================================================"
+    echo
+    
+    # Check if running as root
+    check_root
+    
+    # Run all tests
+    run_all_tests
+}
+
+# Run main function
+main "$@"

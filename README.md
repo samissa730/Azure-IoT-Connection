@@ -25,7 +25,7 @@ Before setting up the service, ensure you have:
 
 ## Quick Setup
 
-### Automated Setup
+### Automated Setup (Recommended)
 
 **Important:** You can run the scripts directly with bash without making them executable:
 ```bash
@@ -36,7 +36,7 @@ sudo bash uninstall.sh
 
 1. **Clone the repository**:
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/samissa730/Azure-IoT-Connection.git
    cd Azure-IoT-Connection
    ```
 
@@ -45,20 +45,65 @@ sudo bash uninstall.sh
    sudo bash set_env.sh
    ```
 
-4. **Follow the prompts** to enter your Azure IoT configuration details:
-   - ID Scope
-   - Registration ID
-   - Primary Key
-   - Site Name
-   - Truck Number
+3. **Follow the prompts** to enter your Azure IoT configuration details:
+   - Group Primary Key (from Azure Portal)
+   - DPS ID Scope (from Azure Portal)
+   - Site Name (e.g., Warehouse_A)
+   - Truck Number (e.g., Truck_001)
 
 The script will automatically:
 - Update system packages
 - Install Python and Azure IoT dependencies
-- Create configuration files
+- Create all necessary directories and files
+- Copy service scripts to proper locations
 - Set up the systemd service
+- Run device setup with your input
 - Enable and start the service
 - Verify the installation
+
+**That's it!** Your Azure IoT service will be running and connected to Azure IoT Hub.
+
+### Manual Setup (Alternative)
+
+If you prefer to set up the service manually or need to troubleshoot specific steps, you can follow these manual commands:
+
+```bash
+# Update system packages
+sudo apt update
+sudo apt install -y python3-pip
+sudo pip3 install --break-system-packages azure-iot-device
+
+# Create directories
+sudo mkdir -p /opt/azure-iot
+sudo mkdir -p /etc/azureiotpnp
+sudo mkdir -p /var/log
+
+# Copy service files
+sudo cp iot_service.py /opt/azure-iot/
+sudo cp device_setup.py /opt/azure-iot/
+sudo cp azure-iot.service /etc/systemd/system/
+
+# Set permissions
+sudo chmod +x /opt/azure-iot/iot_service.py
+sudo chmod +x /opt/azure-iot/device_setup.py
+
+# Run device setup
+sudo python3 /opt/azure-iot/device_setup.py
+
+# Set configuration permissions
+sudo chmod 600 /etc/azureiotpnp/provisioning_config.json
+
+# Create log file
+sudo touch /var/log/azure-iot-service.log
+sudo chmod 644 /var/log/azure-iot-service.log
+
+# Setup and start service
+sudo systemctl daemon-reload
+sudo systemctl enable azure-iot.service
+sudo systemctl start azure-iot.service
+```
+
+**Note:** The automated setup script (`set_env.sh`) handles all of these steps automatically.
 
 ## Service Management
 
@@ -175,8 +220,10 @@ The primary automation script that handles the complete environment setup.
 **What it does:**
 - Updates system packages
 - Installs Python and Azure IoT dependencies
-- Creates configuration files with your input
+- Creates all necessary directories and files
+- Copies service scripts to proper locations
 - Sets up the systemd service
+- Runs device setup with your input
 - Enables and starts the service
 - Verifies the installation
 
@@ -191,6 +238,7 @@ sudo bash set_env.sh
 - Colored output for better readability
 - Comprehensive verification steps
 - Automatic service management
+- Complete automation of all manual steps
 
 ### **`test_setup.sh`** - Verification Script
 Tests and validates your Azure IoT service setup to ensure everything is working correctly.
