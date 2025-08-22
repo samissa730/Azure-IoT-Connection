@@ -46,35 +46,42 @@ def get_user_input():
     # Show device serial number
     serial = get_device_serial()
     print(f"\nDevice Serial Number: {serial}")
-    print(f"Suggested Device ID: nexus-{serial}")
+    print(f"Device ID: {serial}")
     
-    # Get inputs
-    print("\nPlease provide the following information:")
-    
-    group_key = input("\n1. Group Primary Key (from Azure Portal): ").strip()
-    if not group_key:
-        print("Error: Group key is required!")
+    # Read configuration from env.json
+    try:
+        with open('env.json', 'r') as f:
+            env_config = json.load(f)
+        
+        group_key = env_config.get('group_key')
+        id_scope = env_config.get('idScope')
+        
+        if not group_key or not id_scope:
+            print("Error: Missing required configuration in env.json!")
+            print("Please ensure env.json contains 'group_key' and 'idScope'")
+            return None
+            
+    except FileNotFoundError:
+        print("Error: env.json file not found!")
+        print("Please create env.json with required configuration")
+        return None
+    except json.JSONDecodeError:
+        print("Error: Invalid JSON in env.json file!")
+        return None
+    except Exception as e:
+        print(f"Error reading env.json: {e}")
         return None
     
-    default_device_id = f"nexus-{serial}"
-    device_id = input(f"\n2. Device ID [{default_device_id}]: ").strip()
-    if not device_id:
-        device_id = default_device_id
+    # Set default values
+    device_id = serial
+    site_name = "Lazer"
+    truck_number = serial
     
-    id_scope = input("\n3. DPS ID Scope (from Azure Portal): ").strip()
-    if not id_scope:
-        print("Error: ID Scope is required!")
-        return None
-    
-    site_name = input("\n4. Site Name (e.g., Warehouse_A): ").strip()
-    if not site_name:
-        print("Error: Site Name is required!")
-        return None
-    
-    truck_number = input("\n5. Truck Number (e.g., Truck_001): ").strip()
-    if not truck_number:
-        print("Error: Truck Number is required!")
-        return None
+    print(f"\nConfiguration loaded from env.json:")
+    print(f"ID Scope: {id_scope}")
+    print(f"Site Name: {site_name}")
+    print(f"Truck Number: {truck_number}")
+    print(f"Device ID: {device_id}")
     
     return {
         'group_key': group_key,
@@ -149,10 +156,8 @@ def main():
     print(f"Device Serial: {inputs['serial']}")
     print("=" * 60)
     
-    confirm = input("\nSave this configuration? (yes/no): ").strip().lower()
-    if confirm not in ['yes', 'y']:
-        print("Setup cancelled.")
-        return
+    # Automatically save configuration
+    print("\nSaving configuration automatically...")
     
     # Save configuration
     if save_configuration(inputs):

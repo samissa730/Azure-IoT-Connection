@@ -19,9 +19,14 @@ Before setting up the service, ensure you have:
 2. **Azure IoT Hub** with Device Provisioning Service (DPS) enabled
 3. **Device Registration** in Azure DPS with the following information:
    - ID Scope
-   - Registration ID
    - Primary Key (Symmetric Key)
-   - Site Name and Truck Number for tagging
+4. **`env.json` file** configured with your Azure IoT credentials:
+   ```json
+   {
+       "group_key": "your_group_primary_key",
+       "idScope": "your_dps_id_scope"
+   }
+   ```
 
 ## Quick Setup
 
@@ -45,11 +50,14 @@ sudo bash uninstall.sh
    sudo bash set_env.sh
    ```
 
-3. **Follow the prompts** to enter your Azure IoT configuration details:
-   - Group Primary Key (from Azure Portal)
-   - DPS ID Scope (from Azure Portal)
-   - Site Name (e.g., Warehouse_A)
-   - Truck Number (e.g., Truck_001)
+3. **Ensure your `env.json` file contains the required Azure IoT configuration**:
+   - `group_key`: Group Primary Key (from Azure Portal)
+   - `idScope`: DPS ID Scope (from Azure Portal)
+   
+   The script will automatically use these values along with default settings:
+   - Site Name: "Lazer"
+   - Truck Number: Device Serial Number
+   - Device ID: Device Serial Number
 
 The script will automatically:
 - Update system packages
@@ -103,7 +111,7 @@ sudo systemctl enable azure-iot.service
 sudo systemctl start azure-iot.service
 ```
 
-**Note:** The automated setup script (`set_env.sh`) handles all of these steps automatically.
+**Note:** The automated setup script (`set_env.sh`) handles all of these steps automatically. Make sure your `env.json` file is properly configured before running the script.
 
 ## Service Management
 
@@ -198,9 +206,10 @@ sudo python3 iot_service.py
    - Check for Windows line endings: `dos2unix *.sh`
 
 4. **Configuration input validation fails:**
-   - Ensure all fields are filled (no empty values)
-   - Check for special characters in your input
+   - Ensure `env.json` file exists and is properly formatted
+   - Check that `group_key` and `idScope` are present in `env.json`
    - Verify your Azure IoT credentials are correct
+   - Ensure the device has a valid serial number
 
 ## Security Considerations
 
@@ -223,7 +232,7 @@ The primary automation script that handles the complete environment setup.
 - Creates all necessary directories and files
 - Copies service scripts to proper locations
 - Sets up the systemd service
-- Runs device setup with your input
+- Runs device setup automatically using `env.json` configuration
 - Enables and starts the service
 - Verifies the installation
 
@@ -233,7 +242,8 @@ sudo bash set_env.sh
 ```
 
 **Features:**
-- Interactive prompts for Azure IoT configuration
+- Automatic configuration from `env.json` file
+- Default values for site name, truck number, and device ID
 - Error handling and validation
 - Colored output for better readability
 - Comprehensive verification steps
@@ -293,7 +303,9 @@ Azure-IoT-Connection/
 ├── test_setup.sh                 # Setup verification script
 ├── uninstall.sh                  # Service removal script
 ├── iot_service.py                # Main IoT service script
+├── device_setup.py               # Device configuration script
 ├── azure-iot.service             # Systemd service file
+├── env.json                      # Azure IoT credentials (create this)
 ├── provisioning_config_template.json  # Configuration template
 └── README.md                     # This file
 ```
