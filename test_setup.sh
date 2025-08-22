@@ -140,14 +140,14 @@ test_systemd_service() {
     fi
     
     # Check if service is enabled
-    if systemctl is-enabled --quiet azure-iot.service; then
+    if sudo systemctl is-enabled --quiet azure-iot.service; then
         print_success "Service is enabled (will start on boot)"
     else
         print_warning "Service is not enabled"
     fi
     
     # Check if service is active
-    if systemctl is-active --quiet azure-iot.service; then
+    if sudo systemctl is-active --quiet azure-iot.service; then
         print_success "Service is running"
     else
         print_warning "Service is not running"
@@ -155,7 +155,7 @@ test_systemd_service() {
     
     # Check service status
     print_status "Service status:"
-    systemctl status azure-iot.service --no-pager -l
+    sudo systemctl status azure-iot.service --no-pager -l
     
     return 0
 }
@@ -230,13 +230,13 @@ test_logging() {
     
     # Check systemd journal
     print_status "Checking systemd journal for service logs..."
-    journal_count=$(journalctl -u azure-iot.service --no-pager | wc -l)
+    journal_count=$(sudo journalctl -u azure-iot.service --no-pager | wc -l)
     if [[ $journal_count -gt 1 ]]; then
         print_success "Service logs found in systemd journal ($journal_count lines)"
         
         # Show last few journal entries
         print_status "Last 5 journal entries:"
-        journalctl -u azure-iot.service --no-pager -n 5
+        sudo journalctl -u azure-iot.service --no-pager -n 5
     else
         print_warning "No service logs found in systemd journal"
     fi
@@ -281,16 +281,16 @@ analyze_logs() {
     if [[ $error_count -gt 0 ]]; then
         print_warning "Found $error_count potential errors in service logs"
         print_status "Recent errors:"
-        journalctl -u azure-iot.service --no-pager | grep -i "error\|fail\|exception" | tail -5
+        sudo journalctl -u azure-iot.service --no-pager | grep -i "error\|fail\|exception" | tail -5
     else
         print_success "No errors found in service logs"
     fi
     
     # Check for connection issues
-    connection_issues=$(journalctl -u azure-iot.service --no-pager | grep -i "connect\|connection\|timeout" | wc -l)
+    connection_issues=$(sudo journalctl -u azure-iot.service --no-pager | grep -i "connect\|connection\|timeout" | wc -l)
     if [[ $connection_issues -gt 0 ]]; then
         print_status "Connection-related messages found:"
-        journalctl -u azure-iot.service --no-pager | grep -i "connect\|connection\|timeout" | tail -3
+        sudo journalctl -u azure-iot.service --no-pager | grep -i "connect\|connection\|timeout" | tail -3
     fi
     
     return 0
@@ -306,12 +306,12 @@ provide_recommendations() {
     echo "============================================================"
     
     # Check if service is running
-    if ! systemctl is-active --quiet azure-iot.service; then
+    if ! sudo systemctl is-active --quiet azure-iot.service; then
         echo "• Start the service: sudo systemctl start azure-iot.service"
     fi
     
     # Check if service is enabled
-    if ! systemctl is-enabled --quiet azure-iot.service; then
+    if ! sudo systemctl is-enabled --quiet azure-iot.service; then
         echo "• Enable service auto-start: sudo systemctl enable azure-iot.service"
     fi
     

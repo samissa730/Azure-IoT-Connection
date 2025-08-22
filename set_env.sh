@@ -64,7 +64,7 @@ check_system() {
 # Function to update system packages
 update_system() {
     print_status "Updating system packages..."
-    apt update -y
+    sudo apt update -y
     print_success "System packages updated"
 }
 
@@ -75,12 +75,12 @@ install_dependencies() {
     # Install Python pip if not present
     if ! command -v pip3 &> /dev/null; then
         print_status "Installing python3-pip..."
-        apt install -y python3-pip
+        sudo apt install -y python3-pip
     fi
     
     # Install Azure IoT Device SDK
     print_status "Installing Azure IoT Device SDK..."
-    pip3 install --break-system-packages azure-iot-device
+    sudo pip3 install --break-system-packages azure-iot-device
     
     print_success "Dependencies installed successfully"
 }
@@ -89,9 +89,9 @@ install_dependencies() {
 create_directories() {
     print_status "Creating necessary directories..."
     
-    mkdir -p /opt/azure-iot
-    mkdir -p /etc/azureiotpnp
-    mkdir -p /var/log
+    sudo mkdir -p /opt/azure-iot
+    sudo mkdir -p /etc/azureiotpnp
+    sudo mkdir -p /var/log
     
     print_success "Directories created"
 }
@@ -102,8 +102,8 @@ copy_service_files() {
     
     # Copy the main service script
     if [[ -f "iot_service.py" ]]; then
-        cp iot_service.py /opt/azure-iot/
-        chmod +x /opt/azure-iot/iot_service.py
+        sudo cp iot_service.py /opt/azure-iot/
+        sudo chmod +x /opt/azure-iot/iot_service.py
         print_success "IoT service script copied"
     else
         print_error "iot_service.py not found in current directory"
@@ -112,8 +112,8 @@ copy_service_files() {
     
     # Copy the device setup script
     if [[ -f "device_setup.py" ]]; then
-        cp device_setup.py /opt/azure-iot/
-        chmod +x /opt/azure-iot/device_setup.py
+        sudo cp device_setup.py /opt/azure-iot/
+        sudo chmod +x /opt/azure-iot/device_setup.py
         print_success "Device setup script copied"
     else
         print_error "device_setup.py not found in current directory"
@@ -122,7 +122,7 @@ copy_service_files() {
     
     # Copy the systemd service file
     if [[ -f "azure-iot.service" ]]; then
-        cp azure-iot.service /etc/systemd/system/
+        sudo cp azure-iot.service /etc/systemd/system/
         print_success "Systemd service file copied"
     else
         print_error "azure-iot.service not found in current directory"
@@ -134,8 +134,8 @@ copy_service_files() {
 setup_logging() {
     print_status "Setting up logging..."
     
-    touch /var/log/azure-iot-service.log
-    chmod 644 /var/log/azure-iot-service.log
+    sudo touch /var/log/azure-iot-service.log
+    sudo chmod 644 /var/log/azure-iot-service.log
     
     print_success "Logging setup complete"
 }
@@ -173,19 +173,19 @@ setup_service() {
     print_status "Setting up systemd service..."
     
     # Reload systemd to recognize new service
-    systemctl daemon-reload
+    sudo systemctl daemon-reload
     
     # Enable service to start on boot
-    systemctl enable azure-iot.service
+    sudo systemctl enable azure-iot.service
     
     # Start the service
-    systemctl start azure-iot.service
+    sudo systemctl start azure-iot.service
     
     # Wait a moment for service to start
     sleep 3
     
     # Check service status
-    if systemctl is-active --quiet azure-iot.service; then
+    if sudo systemctl is-active --quiet azure-iot.service; then
         print_success "Service started successfully"
     else
         print_warning "Service may not have started properly. Check status with: systemctl status azure-iot.service"
@@ -213,7 +213,7 @@ verify_installation() {
     fi
     
     # Check if systemd service is enabled
-    if systemctl is-enabled --quiet azure-iot.service; then
+    if sudo systemctl is-enabled --quiet azure-iot.service; then
         print_success "Systemd service enabled"
     else
         print_error "Systemd service not enabled"
@@ -221,7 +221,7 @@ verify_installation() {
     fi
     
     # Check if service is running
-    if systemctl is-active --quiet azure-iot.service; then
+    if sudo systemctl is-active --quiet azure-iot.service; then
         print_success "Service is running"
     else
         print_warning "Service is not running. Check status with: systemctl status azure-iot.service"

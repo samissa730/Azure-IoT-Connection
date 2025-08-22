@@ -42,25 +42,25 @@ stop_service() {
     print_status "Stopping and disabling Azure IoT service..."
     
     # Stop the service if it's running
-    if systemctl is-active --quiet azure-iot.service; then
+    if sudo systemctl is-active --quiet azure-iot.service; then
         print_status "Stopping azure-iot.service..."
-        systemctl stop azure-iot.service
+        sudo systemctl stop azure-iot.service
         print_success "Service stopped"
     else
         print_status "Service is not running"
     fi
     
     # Disable the service
-    if systemctl is-enabled --quiet azure-iot.service; then
+    if sudo systemctl is-enabled --quiet azure-iot.service; then
         print_status "Disabling azure-iot.service..."
-        systemctl disable azure-iot.service
+        sudo systemctl disable azure-iot.service
         print_success "Service disabled"
     else
         print_status "Service is not enabled"
     fi
     
     # Reload systemd
-    systemctl daemon-reload
+    sudo systemctl daemon-reload
     print_success "Systemd reloaded"
 }
 
@@ -111,7 +111,7 @@ remove_logs() {
     
     # Remove systemd journal entries (optional)
     print_status "Cleaning systemd journal entries..."
-    journalctl --vacuum-time=1s --unit=azure-iot.service > /dev/null 2>&1 || true
+    sudo journalctl --vacuum-time=1s --unit=azure-iot.service > /dev/null 2>&1 || true
     print_success "Systemd journal cleaned"
 }
 
@@ -172,7 +172,7 @@ verify_removal() {
     fi
     
     # Check if service is still enabled
-    if systemctl is-enabled --quiet azure-iot.service 2>/dev/null; then
+    if sudo systemctl is-enabled --quiet azure-iot.service 2>/dev/null; then
         print_warning "Service is still enabled"
         all_removed=false
     fi
