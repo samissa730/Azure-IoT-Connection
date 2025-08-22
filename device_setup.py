@@ -48,9 +48,11 @@ def get_user_input():
     print(f"\nDevice Serial Number: {serial}")
     print(f"Device ID: {serial}")
     
-    # Read configuration from env.json
+    # Read configuration from env.json (same directory as script)
     try:
-        with open('env.json', 'r') as f:
+        script_dir = Path(__file__).parent
+        env_path = script_dir / 'env.json'
+        with open(env_path, 'r') as f:
             env_config = json.load(f)
         
         group_key = env_config.get('group_key')
@@ -62,8 +64,8 @@ def get_user_input():
             return None
             
     except FileNotFoundError:
-        print("Error: env.json file not found!")
-        print("Please create env.json with required configuration")
+        print(f"Error: env.json file not found at {env_path}!")
+        print("Please ensure env.json exists in the same directory as device_setup.py")
         return None
     except json.JSONDecodeError:
         print("Error: Invalid JSON in env.json file!")
