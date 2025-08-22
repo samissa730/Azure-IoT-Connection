@@ -120,6 +120,17 @@ copy_service_files() {
         exit 1
     fi
     
+    # Copy the env.json file (required for device setup)
+    if [[ -f "env.json" ]]; then
+        sudo cp env.json /opt/azure-iot/
+        sudo chmod 600 /opt/azure-iot/env.json
+        print_success "Environment configuration copied"
+    else
+        print_error "env.json not found in current directory"
+        print_error "Please create env.json with your Azure IoT credentials before running setup"
+        exit 1
+    fi
+    
     # Copy the systemd service file
     if [[ -f "azure-iot.service" ]]; then
         sudo cp azure-iot.service /etc/systemd/system/
@@ -209,6 +220,14 @@ verify_installation() {
         print_success "Service files installed"
     else
         print_error "Service files not found"
+        return 1
+    fi
+    
+    # Check if env.json was copied
+    if [[ -f "/opt/azure-iot/env.json" ]]; then
+        print_success "Environment configuration copied"
+    else
+        print_error "Environment configuration not found"
         return 1
     fi
     
