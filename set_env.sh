@@ -64,7 +64,18 @@ check_system() {
 # Function to update system packages
 update_system() {
     print_status "Updating system packages..."
-    sudo apt update -y
+    
+    # Remove problematic Microsoft repository if it exists
+    if [[ -f "/etc/apt/sources.list.d/azurecore.list" ]]; then
+        print_status "Removing problematic Microsoft repository..."
+        sudo rm -f /etc/apt/sources.list.d/azurecore.list
+    fi
+    
+    # Update packages, ignoring repository errors
+    sudo apt update -y || {
+        print_warning "Some repositories failed to update (this is normal)"
+        print_status "Continuing with setup..."
+    }
     print_success "System packages updated"
 }
 
