@@ -82,6 +82,10 @@ install_dependencies() {
     print_status "Installing Azure IoT Device SDK..."
     sudo pip3 install --break-system-packages azure-iot-device
     
+    # Install Azure Storage Blob SDK (required for updates)
+    print_status "Installing Azure Storage Blob SDK..."
+    sudo pip3 install --break-system-packages azure-storage-blob
+    
     print_success "Dependencies installed successfully"
 }
 
