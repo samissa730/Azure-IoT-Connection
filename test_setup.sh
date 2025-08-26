@@ -124,6 +124,19 @@ test_service_files() {
         return 1
     fi
     
+    # Check if download script exists and is executable
+    if [[ -f "/opt/azure-iot/download.py" ]]; then
+        print_success "Download script exists"
+        if [[ -x "/opt/azure-iot/download.py" ]]; then
+            print_success "Download script is executable"
+        else
+            print_warning "Download script is not executable"
+        fi
+    else
+        print_error "Download script not found"
+        return 1
+    fi
+    
     return 0
 }
 
@@ -191,6 +204,13 @@ test_python_dependencies() {
     else
         print_error "Azure IoT Device SDK is not installed"
         return 1
+    fi
+    
+    # Check Azure Storage Blob SDK
+    if python3 -c "import azure.storage.blob" 2>/dev/null; then
+        print_success "Azure Storage Blob SDK is installed"
+    else
+        print_warning "Azure Storage Blob SDK is not installed (required for updates)"
     fi
     
     return 0
@@ -293,6 +313,13 @@ analyze_logs() {
         sudo journalctl -u azure-iot.service --no-pager | grep -i "connect\|connection\|timeout" | tail -3
     fi
     
+    # Check for update-related issues
+    update_issues=$(sudo journalctl -u azure-iot.service --no-pager | grep -i "download\|update\|blob\|storage" | wc -l)
+    if [[ $update_issues -gt 0 ]]; then
+        print_status "Update-related messages found:"
+        sudo journalctl -u azure-iot.service --no-pager | grep -i "download\|update\|blob\|storage" | tail -3
+    fi
+    
     return 0
 }
 
@@ -322,6 +349,10 @@ provide_recommendations() {
     
     if [[ ! -f "/etc/azureiotpnp/provisioning_config.json" ]]; then
         echo "• Run device setup: sudo python3 /opt/azure-iot/device_setup.py"
+    fi
+    
+    if [[ ! -f "/opt/azure-iot/download.py" ]]; then
+        echo "• Ensure download.py is present for automatic updates"
     fi
     
     echo

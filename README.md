@@ -5,11 +5,13 @@ This repository contains the necessary files to set up an Azure IoT connection s
 ## Features
 
 - **Automatic Device Provisioning**: Uses Azure Device Provisioning Service (DPS) for secure device registration
-- **Persistent Connection**: Maintains connection to Azure IoT Hub with automatic reconnection
-- **Heartbeat Monitoring**: Sends regular status updates to Azure IoT Hub
-- **Direct Method Support**: Can execute remote commands sent from Azure IoT Hub
-- **Systemd Service**: Runs as a system service with automatic startup on boot
-- **Comprehensive Logging**: Logs all activities to both system journal and file
+   - **Persistent Connection**: Maintains connection to Azure IoT Hub with automatic reconnection
+   - **Heartbeat Monitoring**: Sends regular status updates to Azure IoT Hub
+   - **Direct Method Support**: Can execute remote commands sent from Azure IoT Hub
+   - **Automatic Updates**: Background thread checks for new versions every 5 minutes
+   - **Blob Storage Integration**: Downloads updates from Azure Blob Storage
+   - **Systemd Service**: Runs as a system service with automatic startup on boot
+   - **Comprehensive Logging**: Logs all activities to both system journal and file
 
 ## Prerequisites
 
@@ -24,7 +26,10 @@ Before setting up the service, ensure you have:
    ```json
    {
        "group_key": "your_group_primary_key",
-       "idScope": "your_dps_id_scope"
+       "idScope": "your_dps_id_scope",
+       "storageAccount": "your_storage_account",
+       "containerName": "your_container_name",
+       "sasToken": "your_sas_token"
    }
    ```
 
@@ -53,21 +58,26 @@ sudo bash uninstall.sh
 3. **Ensure your `env.json` file contains the required Azure IoT configuration**:
    - `group_key`: Group Primary Key (from Azure Portal)
    - `idScope`: DPS ID Scope (from Azure Portal)
+   - `storageAccount`: Azure Storage Account name (for updates)
+   - `containerName`: Container name (for updates)
+   - `sasToken`: Shared Access Signature token (for updates)
    
    The script will automatically use these values along with default settings:
    - Site Name: "Lazer"
    - Truck Number: Device Serial Number
    - Device ID: Device Serial Number
+   - Blob Base Path: "builds"
+   - Current Version: "20250826.1"
 
 The script will automatically:
-- Update system packages
-- Install Python and Azure IoT dependencies
-- Create all necessary directories and files
-- Copy service scripts to proper locations
-- Set up the systemd service
-- Run device setup with your input
-- Enable and start the service
-- Verify the installation
+   - Update system packages
+   - Install Python and Azure IoT dependencies
+   - Create all necessary directories and files
+   - Copy service scripts to proper locations
+   - Set up the systemd service
+   - Run device setup automatically using `env.json` configuration
+   - Enable and start the service
+   - Verify the installation
 
 **That's it!** Your Azure IoT service will be running and connected to Azure IoT Hub.
 
@@ -89,11 +99,13 @@ sudo mkdir -p /var/log
 # Copy service files
 sudo cp iot_service.py /opt/azure-iot/
 sudo cp device_setup.py /opt/azure-iot/
+sudo cp download.py /opt/azure-iot/
 sudo cp azure-iot.service /etc/systemd/system/
 
 # Set permissions
 sudo chmod +x /opt/azure-iot/iot_service.py
 sudo chmod +x /opt/azure-iot/device_setup.py
+sudo chmod +x /opt/azure-iot/download.py
 
 # Run device setup
 sudo python3 /opt/azure-iot/device_setup.py
@@ -147,19 +159,21 @@ sudo systemctl disable azure-iot.service
 ## Configuration
 
 ### Main Configuration File
-- **Location**: `/etc/azureiotpnp/provisioning_config.json`
-- **Permissions**: 600 (root read/write only)
-- **Contains**: Azure DPS credentials and device tags
+   - **Location**: `/etc/azureiotpnp/provisioning_config.json`
+   - **Permissions**: 600 (root read/write only)
+   - **Contains**: Azure DPS credentials, device tags, and update configuration
 
 ### Service Configuration
-- **Location**: `/etc/systemd/system/azure-iot.service`
-- **User**: root
-- **Restart Policy**: Always (with 30-second delay)
-- **Logging**: Both journal and file
+   - **Location**: `/etc/systemd/system/azure-iot.service`
+   - **User**: root
+   - **Restart Policy**: Always (with 30-second delay)
+   - **Logging**: Both journal and file
+   - **Update Integration**: Background updater runs every 5 minutes
 
 ### Log Files
-- **System Journal**: `journalctl -u azure-iot.service`
-- **File Log**: `/var/log/azure-iot-service.log`
+   - **System Journal**: `journalctl -u azure-iot.service`
+   - **File Log**: `/var/log/azure-iot-service.log`
+   - **Update Logs**: Check background updater activity in system journal
 
 ## Troubleshooting
 

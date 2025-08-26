@@ -57,11 +57,19 @@ def get_user_input():
         
         group_key = env_config.get('group_key')
         id_scope = env_config.get('idScope')
+        storage_account = env_config.get('storageAccount')
+        container_name = env_config.get('containerName')
+        sas_token = env_config.get('sasToken')
         
         if not group_key or not id_scope:
             print("Error: Missing required configuration in env.json!")
             print("Please ensure env.json contains 'group_key' and 'idScope'")
             return None
+        # deviceUpdate fields are optional but recommended; warn if missing
+        if not (storage_account and container_name and sas_token):
+            print("Warning: deviceUpdate fields missing in env.json (storageAccount/containerName/sasToken).")
+            print("The device will be configured with defaults for 'blobBasePath' and 'currentVersion',")
+            print("but updates from blob storage require these values.")
             
     except FileNotFoundError:
         print(f"Error: env.json file not found at {env_path}!")
@@ -91,7 +99,10 @@ def get_user_input():
         'id_scope': id_scope,
         'site_name': site_name,
         'truck_number': truck_number,
-        'serial': serial
+        'serial': serial,
+        'storage_account': storage_account,
+        'container_name': container_name,
+        'sas_token': sas_token
     }
 
 def save_configuration(inputs):
@@ -114,6 +125,15 @@ def save_configuration(inputs):
                 "truckNumber": inputs['truck_number'],
                 "deviceSerial": inputs['serial']
             }
+        },
+        "deviceUpdate": {
+            # Defaults as requested
+            "blobBasePath": "builds",
+            "currentVersion": "20250826.1",
+            # Values pulled from env.json
+            "storageAccount": inputs.get('storage_account') or "",
+            "containerName": inputs.get('container_name') or "",
+            "sasToken": inputs.get('sas_token') or ""
         }
     }
     

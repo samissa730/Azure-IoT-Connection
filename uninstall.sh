@@ -200,13 +200,14 @@ show_final_summary() {
     echo "• Configuration files"
     echo "• Log files"
     echo "• Systemd journal entries"
+    echo "• Update scripts and files"
     echo
     echo "What was NOT removed (by default):"
     echo "• Python packages (unless you chose to remove them)"
     echo "• System packages (python3, pip3)"
     echo
     echo "If you want to completely clean up Python packages, run:"
-    echo "  sudo pip3 uninstall -y azure-iot-device --break-system-packages"
+    echo "  sudo pip3 uninstall -y azure-iot-device azure-storage-blob --break-system-packages"
     echo "============================================================"
 }
 

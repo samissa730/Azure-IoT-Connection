@@ -120,6 +120,16 @@ copy_service_files() {
         exit 1
     fi
     
+    # Copy the download script
+    if [[ -f "download.py" ]]; then
+        sudo cp download.py /opt/azure-iot/
+        sudo chmod +x /opt/azure-iot/download.py
+        print_success "Download script copied"
+    else
+        print_error "download.py not found in current directory"
+        exit 1
+    fi
+    
     # Copy the env.json file (required for device setup)
     if [[ -f "env.json" ]]; then
         sudo cp env.json /opt/azure-iot/
@@ -216,7 +226,7 @@ verify_installation() {
     fi
     
     # Check if service files exist
-    if [[ -f "/opt/azure-iot/iot_service.py" ]] && [[ -f "/opt/azure-iot/device_setup.py" ]]; then
+    if [[ -f "/opt/azure-iot/iot_service.py" ]] && [[ -f "/opt/azure-iot/device_setup.py" ]] && [[ -f "/opt/azure-iot/download.py" ]]; then
         print_success "Service files installed"
     else
         print_error "Service files not found"

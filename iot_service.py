@@ -4,6 +4,8 @@ import time
 # import logging
 import signal
 import subprocess
+import sys
+import threading
 from pathlib import Path
 from azure.iot.device import (
     IoTHubDeviceClient,
@@ -29,6 +31,7 @@ class AzureIoTService:
     def __init__(self):
         self.client = None
         self.running = True
+        self.updater_thread = None
         self._load_configuration()
         signal.signal(signal.SIGTERM, self._signal_handler)
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -151,6 +154,14 @@ class AzureIoTService:
         if not self.connect_to_iot_hub():
             return
 
+        # Start background updater that runs download.py every 5 minutes
+        try:
+            if not self.updater_thread or not self.updater_thread.is_alive():
+                self.updater_thread = threading.Thread(target=self._background_update_worker, daemon=True)
+                self.updater_thread.start()
+        except Exception:
+            pass
+
         # Send initial connection message with device info
         initial_msg = json.dumps({
             "event": "device_connected",
@@ -204,6 +215,31 @@ class AzureIoTService:
                 except Exception as e:
                     pass
                     # logger.error(f"Error during disconnect: {e}")
+
+    def _background_update_worker(self):
+        """Run download.py every 5 minutes independent of the IoT loop."""
+        script_candidates = [
+            Path(__file__).with_name("download.py"),
+            Path("/opt/azure-iot/download.py")
+        ]
+        script_path = None
+        for cand in script_candidates:
+            if cand.exists():
+                script_path = cand
+                break
+        # If no script found, just exit the worker
+        if not script_path:
+            return
+        while self.running:
+            try:
+                subprocess.run([sys.executable, str(script_path)], check=False)
+            except Exception:
+                pass
+            # Sleep for 5 minutes regardless of success/failure
+            for _ in range(300):
+                if not self.running:
+                    break
+                time.sleep(1)
 
     def _update_reported_tags(self):
         """Report configuration tags to device twin (reported properties)."""
