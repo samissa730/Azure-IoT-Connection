@@ -20,18 +20,22 @@ def load_or_prompt_env():
     Returns a tuple of (env_config, env_path) or (None, None) on failure.
     """
     script_dir = Path(__file__).parent
-    env_path = script_dir / 'env.json'
+    env_path_script = script_dir / 'env.json'
     cwd_path = Path.cwd() / 'env.json'
     project_dir_env = os.getenv('NEXUS_PROJECT_DIR')
     project_env_path = Path(project_dir_env) / 'env.json' if project_dir_env else None
+    # Default primary save/read path prefers project directory when provided
+    env_path = project_env_path or env_path_script
 
     env_config = {}
-    # Prefer env.json next to the script; if missing, try CWD then NEXUS_PROJECT_DIR
-    candidate_paths = [env_path]
-    if cwd_path != env_path:
-        candidate_paths.append(cwd_path)
-    if project_env_path and project_env_path not in candidate_paths:
+    # Prefer env.json in project directory first (if provided), then next to script, then CWD
+    candidate_paths = []
+    if project_env_path:
         candidate_paths.append(project_env_path)
+    if env_path_script not in candidate_paths:
+        candidate_paths.append(env_path_script)
+    if cwd_path not in candidate_paths:
+        candidate_paths.append(cwd_path)
 
     for candidate in candidate_paths:
         if candidate.exists():
@@ -81,14 +85,23 @@ def load_or_prompt_env():
     get_value('containerName', 'Enter Container Name', required=True)
     get_value('sasToken', 'Enter SAS Token', required=True)
 
-    # Save to script directory first
+    # Save primarily to project directory if provided; otherwise to script directory
     try:
         with open(env_path, 'w') as f:
             json.dump(env_config, f, indent=2)
         print(f"Saved configuration to {env_path}")
     except Exception as e:
-        print(f"Error saving env.json to script directory: {e}")
+        print(f"Error saving env.json to primary location: {e}")
         return None, None
+
+    # Also save to script directory if different and primary was project directory
+    if env_path_script != env_path:
+        try:
+            with open(env_path_script, 'w') as f:
+                json.dump(env_config, f, indent=2)
+            print(f"Saved configuration to {env_path_script}")
+        except Exception as e:
+            print(f"Warning: could not save env.json next to script: {e}")
 
     # Also save to current working directory if different
     if cwd_path != env_path:
@@ -98,16 +111,6 @@ def load_or_prompt_env():
             print(f"Saved configuration to {cwd_path}")
         except Exception as e:
             print(f"Warning: could not save env.json to current directory: {e}")
-
-    # Also save to NEXUS_PROJECT_DIR if provided
-    if project_env_path and project_env_path != env_path and project_env_path != cwd_path:
-        try:
-            project_env_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(project_env_path, 'w') as f:
-                json.dump(env_config, f, indent=2)
-            print(f"Saved configuration to {project_env_path}")
-        except Exception as e:
-            print(f"Warning: could not save env.json to NEXUS_PROJECT_DIR: {e}")
 
     # All required values are guaranteed at this point
 

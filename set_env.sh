@@ -191,6 +191,7 @@ run_device_setup() {
     echo
     
     # Run the device setup script
+    export NEXUS_PROJECT_DIR="$(pwd)"
     cd /opt/azure-iot
     python3 device_setup.py
     
