@@ -55,10 +55,10 @@ def load_or_prompt_env():
     get_value('group_key', 'Enter Group Key', required=True)
     get_value('idScope', 'Enter ID Scope', required=True)
 
-    # Optional but recommended for device updates
-    get_value('storageAccount', 'Enter Storage Account name')
-    get_value('containerName', 'Enter Container Name')
-    get_value('sasToken', 'Enter SAS Token')
+    # Required for device updates (blob storage access)
+    get_value('storageAccount', 'Enter Storage Account name', required=True)
+    get_value('containerName', 'Enter Container Name', required=True)
+    get_value('sasToken', 'Enter SAS Token', required=True)
 
     try:
         with open(env_path, 'w') as f:
@@ -68,10 +68,7 @@ def load_or_prompt_env():
         print(f"Error saving env.json: {e}")
         return None, None
 
-    if not (env_config.get('storageAccount') and env_config.get('containerName') and env_config.get('sasToken')):
-        print("Warning: deviceUpdate fields missing in env.json (storageAccount/containerName/sasToken).")
-        print("The device will be configured with defaults for 'blobBasePath' and 'currentVersion',")
-        print("but updates from blob storage require these values.")
+    # All required values are guaranteed at this point
 
     return env_config, env_path
 
