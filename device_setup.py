@@ -13,6 +13,68 @@ from pathlib import Path
 
 CONFIG_PATH = Path("/etc/azureiotpnp/provisioning_config.json")
 
+def load_or_prompt_env():
+    """Load env.json if present and complete; otherwise prompt for values and save it.
+
+    Returns a tuple of (env_config, env_path) or (None, None) on failure.
+    """
+    script_dir = Path(__file__).parent
+    env_path = script_dir / 'env.json'
+
+    env_config = {}
+    if env_path.exists():
+        try:
+            with open(env_path, 'r') as f:
+                env_config = json.load(f) or {}
+        except json.JSONDecodeError:
+            print("Error: Invalid JSON in env.json. We'll recreate it.")
+            env_config = {}
+        except Exception as e:
+            print(f"Error reading env.json: {e}. We'll recreate it.")
+            env_config = {}
+
+    def get_value(key, prompt_text, required=False):
+        current_value = env_config.get(key)
+        if required and (current_value is None or str(current_value).strip() == ""):
+            # Keep prompting until a non-empty value is provided
+            while True:
+                user_input_value = input(f"{prompt_text}: ").strip()
+                if user_input_value:
+                    env_config[key] = user_input_value
+                    break
+                print("This value is required. Please enter a non-empty value.")
+        else:
+            # Optional value: only prompt if key missing
+            if current_value is None:
+                user_input_value = input(f"{prompt_text} (optional, press Enter to skip): ").strip()
+                env_config[key] = user_input_value
+
+        return env_config.get(key)
+
+    # Required values
+    get_value('group_key', 'Enter Group Key', required=True)
+    get_value('idScope', 'Enter ID Scope', required=True)
+
+    # Optional but recommended for device updates
+    get_value('storageAccount', 'Enter Storage Account name')
+    get_value('containerName', 'Enter Container Name')
+    get_value('sasToken', 'Enter SAS Token')
+
+    try:
+        with open(env_path, 'w') as f:
+            json.dump(env_config, f, indent=2)
+        print(f"Saved configuration to {env_path}")
+    except Exception as e:
+        print(f"Error saving env.json: {e}")
+        return None, None
+
+    if not (env_config.get('storageAccount') and env_config.get('containerName') and env_config.get('sasToken')):
+        print("Warning: deviceUpdate fields missing in env.json (storageAccount/containerName/sasToken).")
+        print("The device will be configured with defaults for 'blobBasePath' and 'currentVersion',")
+        print("but updates from blob storage require these values.")
+
+    return env_config, env_path
+
 def get_device_serial():
     """Get device serial number"""
     try:
@@ -48,39 +110,16 @@ def get_user_input():
     print(f"\nDevice Serial Number: {serial}")
     print(f"Device ID: {serial}")
     
-    # Read configuration from env.json (same directory as script)
-    try:
-        script_dir = Path(__file__).parent
-        env_path = script_dir / 'env.json'
-        with open(env_path, 'r') as f:
-            env_config = json.load(f)
-        
-        group_key = env_config.get('group_key')
-        id_scope = env_config.get('idScope')
-        storage_account = env_config.get('storageAccount')
-        container_name = env_config.get('containerName')
-        sas_token = env_config.get('sasToken')
-        
-        if not group_key or not id_scope:
-            print("Error: Missing required configuration in env.json!")
-            print("Please ensure env.json contains 'group_key' and 'idScope'")
-            return None
-        # deviceUpdate fields are optional but recommended; warn if missing
-        if not (storage_account and container_name and sas_token):
-            print("Warning: deviceUpdate fields missing in env.json (storageAccount/containerName/sasToken).")
-            print("The device will be configured with defaults for 'blobBasePath' and 'currentVersion',")
-            print("but updates from blob storage require these values.")
-            
-    except FileNotFoundError:
-        print(f"Error: env.json file not found at {env_path}!")
-        print("Please ensure env.json exists in the same directory as device_setup.py")
+    # Ensure configuration from env.json or prompt the user to create/update it
+    env_config, env_path = load_or_prompt_env()
+    if not env_config:
         return None
-    except json.JSONDecodeError:
-        print("Error: Invalid JSON in env.json file!")
-        return None
-    except Exception as e:
-        print(f"Error reading env.json: {e}")
-        return None
+
+    group_key = env_config.get('group_key')
+    id_scope = env_config.get('idScope')
+    storage_account = env_config.get('storageAccount')
+    container_name = env_config.get('containerName')
+    sas_token = env_config.get('sasToken')
     
     # Set default values
     device_id = serial
